@@ -8,6 +8,8 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <!-- Librería para generar PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- Markdown parser simple para la respuesta de la IA -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     
     <style>
         /* --- ESTILOS GENERALES --- */
@@ -206,10 +208,81 @@
             font-family: 'Lato', sans-serif;
             font-weight: bold;
             text-transform: uppercase;
-            text-decoration: none; /* Para links si fuera necesario */
+            text-decoration: none;
         }
         .action-btn:hover { transform: scale(1.05); background: #d6336c; color: white; }
         .action-btn i { font-size: 1.2rem; }
+        
+        /* Botón Mágico Especial (Regalo) */
+        .btn-magic {
+            background: #ff6b81; /* Color especial para destacar */
+            color: white;
+            border: none;
+            box-shadow: 0 4px 15px rgba(255, 107, 129, 0.4);
+            animation: pulse-light 2s infinite;
+        }
+        .btn-magic:hover {
+            background: #ff4757;
+            transform: scale(1.05);
+        }
+
+        @keyframes pulse-light {
+            0% { box-shadow: 0 0 0 0 rgba(255, 107, 129, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 107, 129, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 107, 129, 0); }
+        }
+
+        /* MODAL DE MENSAJE ESPECIAL */
+        #magic-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            display: none; justify-content: center; align-items: center;
+            z-index: 10000;
+            backdrop-filter: blur(5px);
+            padding: 20px;
+        }
+        .magic-content {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+            position: relative;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 2px solid #ffb7b2;
+            background-image: radial-gradient(#d6336c 0.5px, transparent 0.5px);
+            background-size: 30px 30px;
+            background-color: #fffdf5;
+        }
+        .magic-text {
+            font-size: 1.3rem;
+            line-height: 1.6;
+            color: #d6336c;
+            font-family: 'Great Vibes', cursive; /* Fuente romántica para el mensaje */
+            min-height: 100px;
+            display: flex; justify-content: center; align-items: center;
+            padding: 20px;
+        }
+        .magic-close {
+            margin-top: 20px;
+            background: #d6336c;
+            color: white;
+            border: none;
+            padding: 10px 30px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            font-family: 'Lato', sans-serif;
+        }
+        .magic-loading {
+            color: #d6336c;
+            font-size: 2rem;
+            animation: beat 1s infinite;
+        }
+        @keyframes popIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+        @keyframes beat { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); } }
 
         /* El Papel */
         .paper-content {
@@ -292,7 +365,7 @@
         
         /* Ocultar elementos al imprimir */
         @media print {
-            .action-bar-bottom, #intro-screen, .music-control, #bg-canvas, .music-hint { display: none !important; }
+            .action-bar-bottom, #intro-screen, .music-control, #bg-canvas, .music-hint, #magic-modal { display: none !important; }
             body { background: white; height: auto; overflow: visible; }
             #letter-container { position: static; display: block; overflow: visible; opacity: 1; }
             .paper-content { margin: 0; width: 100%; box-shadow: none; transform: none; }
@@ -331,6 +404,17 @@
         </div>
         
         <div class="click-hint">Toca el sobre para abrir</div>
+    </div>
+
+    <!-- MODAL DE MENSAJE ESPECIAL (LLM) -->
+    <div id="magic-modal">
+        <div class="magic-content">
+            <h3 style="font-family: 'Lato', sans-serif; color: #4a4a4a; font-size: 1.2rem; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px;">Para ti, mi amor...</h3>
+            <div id="magic-result" class="magic-text">
+                <!-- Aquí aparecerá el texto de Gemini -->
+            </div>
+            <button class="magic-close" onclick="closeMagicModal()">Gracias mi amor ❤️</button>
+        </div>
     </div>
 
     <!-- CARTA COMPLETA -->
@@ -392,9 +476,12 @@
             </div>
             
             <!-- BARRA DE ACCIONES (Fuera del div 'paper-inner' para no salir en el PDF) -->
-            <div class="action-bar-bottom">
+            <div class="action-bar-bottom" data-html2canvas-ignore="true">
+                <button class="action-btn btn-magic" onclick="generateLoveNote()" title="Un detalle para ti">
+                    <i class="fas fa-heart"></i> 🎁 Un Regalo
+                </button>
                 <button class="action-btn" onclick="downloadLetter()" title="Guardar PDF">
-                    <i class="fas fa-download"></i> Descargar Carta
+                    <i class="fas fa-download"></i> Descargar
                 </button>
                 <button class="action-btn" onclick="closeLetter()" title="Cerrar">
                     <i class="fas fa-times"></i> Cerrar
@@ -404,6 +491,55 @@
     </div>
 
     <script>
+        const apiKey = "AIzaSyCNL7s8c4h2U_smiCzwn9Ffd9_5ACFxOKU";
+
+        // --- FUNCIONALIDAD LLM GEMINI ---
+        async function generateLoveNote() {
+            const modal = document.getElementById('magic-modal');
+            const resultDiv = document.getElementById('magic-result');
+            
+            modal.style.display = 'flex';
+            resultDiv.innerHTML = '<div class="magic-loading"><i class="fas fa-heart"></i></div>';
+
+            const prompt = "Eres Richard, el novio profundamente enamorado. Genera un mensaje breve (máximo 25 palabras), tierno y romántico para tu novia. Usa detalles de nuestra carta como sus ojos coloridos, su sonrisa, que es mi sol o nuestro futuro. El mensaje debe sentirse como si se lo estuviera susurrando en este momento. El tono es íntimo, devoto y real. En español.";
+
+            try {
+                // Exponential backoff retry logic implementation inside fetch wrapper if needed, 
+                // but direct call for simplicity here as per standard instructions
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+
+                if (!response.ok) throw new Error('Error en la magia del universo');
+
+                const data = await response.json();
+                const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "Eres la estrella que ilumina cada uno de mis días. Te amo infinitamente.";
+                
+                // Efecto de escritura
+                resultDiv.innerHTML = "";
+                let i = 0;
+                const speed = 50; 
+                function typeWriter() {
+                    if (i < text.length) {
+                        resultDiv.innerHTML += text.charAt(i);
+                        i++;
+                        setTimeout(typeWriter, speed);
+                    }
+                }
+                typeWriter();
+
+            } catch (error) {
+                console.error("Error Gemini:", error);
+                resultDiv.innerHTML = "Solo quería recordarte que eres lo mejor que me ha pasado en la vida. ✨";
+            }
+        }
+
+        function closeMagicModal() {
+            document.getElementById('magic-modal').style.display = 'none';
+        }
+
         // --- EFECTOS VISUALES ---
         const canvas = document.getElementById('bg-canvas');
         const ctx = canvas.getContext('2d');
@@ -558,7 +694,8 @@
         document.addEventListener('click', (e) => {
             if(!e.target.closest('.envelope-wrapper') && 
                !e.target.closest('.music-control') && 
-               !e.target.closest('.action-btn')) {
+               !e.target.closest('.action-btn') &&
+               !e.target.closest('.magic-content')) {
                 createHeart(e.clientX, e.clientY);
             }
         });
