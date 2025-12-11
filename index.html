@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Para Mi Vida</title>
+    <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Lato:ital,wght@0,300;0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Librería para generar PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <style>
+        /* --- ESTILOS GENERALES --- */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Lato', sans-serif;
+            background: #ffdde1;
+            color: #4a4a4a;
+            height: 100vh;
+            width: 100%;
+            overflow: hidden; 
+        }
+
+        #bg-canvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1;
+            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%);
+        }
+
+        /* --- CONTROL DE MÚSICA (Arriba Derecha) --- */
+        .music-control {
+            position: fixed; top: 20px; right: 20px; z-index: 1000;
+            background: rgba(255, 255, 255, 0.8);
+            border: 2px solid #d6336c; color: #d6336c;
+            width: 50px; height: 50px; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .music-control i { font-size: 1.2rem; pointer-events: none; }
+        .music-hint {
+            position: fixed; top: 80px; right: 20px;
+            background: rgba(0, 0, 0, 0.7); color: #fff;
+            padding: 8px 12px; border-radius: 20px;
+            font-size: 0.75rem; z-index: 1000;
+            display: none; opacity: 0; transition: opacity 0.5s; pointer-events: none;
+        }
+
+        /* --- PANTALLA DE INICIO (SOBRE) --- */
+        #intro-screen {
+            height: 100%; width: 100%;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            position: absolute; top: 0; left: 0;
+            z-index: 10;
+            transition: opacity 0.8s ease-in-out;
+            perspective: 1000px;
+        }
+
+        .title-container { 
+            margin-bottom: 40px; 
+            text-align: center;
+            animation: float 6s ease-in-out infinite; 
+            z-index: 20;
+        }
+        h1 {
+            font-family: 'Great Vibes', cursive;
+            font-size: 3.5rem; color: #fff;
+            text-shadow: 2px 2px 10px rgba(214, 51, 108, 0.4);
+            margin: 0;
+        }
+        .subtitle {
+            font-size: 1.1rem; color: #fff;
+            letter-spacing: 2px; text-transform: uppercase;
+            margin-top: 10px; opacity: 0.95; font-weight: 300;
+        }
+
+        /* --- ESTILOS DEL SOBRE --- */
+        .envelope-wrapper {
+            position: relative;
+            width: 300px;
+            height: 200px;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        .envelope-wrapper:hover { transform: scale(1.05); }
+
+        .envelope {
+            position: relative;
+            width: 100%; height: 100%;
+            background: #d6336c;
+            border-radius: 0 0 5px 5px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+
+        .envelope::before { /* Izquierda */
+            content: ''; position: absolute; bottom: 0; left: 0;
+            width: 0; height: 0;
+            border-style: solid;
+            border-width: 100px 0 100px 150px;
+            border-color: transparent transparent transparent #ff8fa3;
+            z-index: 3;
+            border-radius: 0 0 0 5px;
+        }
+        .envelope::after { /* Derecha */
+            content: ''; position: absolute; bottom: 0; right: 0;
+            width: 0; height: 0;
+            border-style: solid;
+            border-width: 0 0 200px 300px;
+            border-color: transparent transparent #ff6b81 transparent;
+            z-index: 3;
+            border-radius: 0 0 5px 5px;
+        }
+
+        .flap {
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: transparent;
+            border-style: solid;
+            border-width: 100px 150px 0 150px;
+            border-color: #ff8fa3 transparent transparent transparent;
+            z-index: 4;
+            transform-origin: top;
+            transition: transform 0.6s 0.2s cubic-bezier(0.4, 0, 0.2, 1), z-index 0.1s 0.4s;
+            border-radius: 5px 5px 0 0;
+        }
+
+        .heart-seal {
+            position: absolute;
+            top: -45px; left: 50%; transform: translateX(-50%);
+            width: 40px; height: 40px;
+            background: #d6336c;
+            border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            color: #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            font-size: 1.2rem;
+            z-index: 5;
+        }
+
+        .letter-preview {
+            position: absolute;
+            top: 10px; left: 20px; right: 20px; bottom: 10px;
+            background: #fffdf5;
+            border-radius: 3px;
+            z-index: 2;
+            transition: transform 0.6s 0.8s ease-in-out;
+            display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 -2px 5px rgba(0,0,0,0.05);
+        }
+        .letter-preview::after {
+            content: 'Para Ti';
+            font-family: 'Great Vibes', cursive;
+            font-size: 1.5rem;
+            color: #d6336c;
+        }
+
+        .envelope-wrapper.open .flap { transform: rotateX(180deg); z-index: 1; }
+        .envelope-wrapper.open .letter-preview { transform: translateY(-80px); }
+
+        .click-hint {
+            margin-top: 40px;
+            color: #fff; font-size: 0.9rem; letter-spacing: 1px;
+            animation: pulse 2s infinite; opacity: 0.8;
+        }
+
+        /* --- PANTALLA DE CARTA (CONTENIDO) --- */
+        #letter-container {
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none; z-index: 20;
+            backdrop-filter: blur(8px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        /* BARRA DE ACCIONES (ABAJO) */
+        .action-bar-bottom {
+            margin-top: 50px;
+            padding-top: 30px;
+            border-top: 1px solid #ffb7b2;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            background: white;
+            color: #d6336c;
+            border: 2px solid #d6336c;
+            padding: 12px 25px;
+            border-radius: 30px;
+            display: flex;
+            gap: 10px;
+            justify-content: center; align-items: center;
+            font-size: 1rem;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(214, 51, 108, 0.2);
+            transition: all 0.2s;
+            font-family: 'Lato', sans-serif;
+            font-weight: bold;
+            text-transform: uppercase;
+            text-decoration: none; /* Para links si fuera necesario */
+        }
+        .action-btn:hover { transform: scale(1.05); background: #d6336c; color: white; }
+        .action-btn i { font-size: 1.2rem; }
+
+        /* El Papel */
+        .paper-content {
+            background-color: #fffdf5;
+            background-image: radial-gradient(#d6336c 0.5px, transparent 0.5px), radial-gradient(#d6336c 0.5px, #fffdf5 0.5px);
+            background-size: 20px 20px;
+            width: 90%; max-width: 700px;
+            margin: 40px auto 100px auto;
+            padding: 50px 40px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+            position: relative;
+            transform: translateY(50px);
+            opacity: 0;
+            transition: all 1s cubic-bezier(0.25, 1, 0.5, 1);
+            border-radius: 2px;
+        }
+        .paper-content.open { opacity: 1; transform: translateY(0); }
+        
+        .paper-inner {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 40px; /* Más padding para impresión */
+            border: 1px solid #ffb7b2;
+            box-shadow: inset 0 0 20px rgba(255, 221, 225, 0.2);
+        }
+
+        .stamp {
+            position: absolute; top: 20px; right: 20px;
+            width: 70px; height: 70px;
+            border: 3px double #d6336c; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            color: #d6336c; transform: rotate(-15deg);
+            font-family: 'Great Vibes', cursive; font-size: 1.2rem;
+            opacity: 0.8; z-index: 5; background: rgba(255,255,255,0.8);
+        }
+
+        /* Textos */
+        .letter-text { font-size: 1.1rem; line-height: 1.8; color: #2c2c2c; text-align: justify; }
+        .greeting { font-size: 2.2rem; font-family: 'Great Vibes', cursive; color: #d6336c; margin-bottom: 30px; display: block; text-align: left; }
+        .dialogue-box {
+            background: #fff0f3; border-left: 4px solid #d6336c;
+            padding: 20px; margin: 30px 0;
+            border-radius: 0 8px 8px 0;
+            font-style: italic; color: #555;
+        }
+        .math-block {
+            text-align: center; font-size: 1.4rem; color: #d6336c;
+            margin: 30px 0; font-family: 'Times New Roman', serif;
+            padding: 10px; border-top: 1px dashed #ffb7b2; border-bottom: 1px dashed #ffb7b2;
+        }
+        .signature {
+            text-align: right; font-family: 'Great Vibes', cursive;
+            font-size: 2.5rem; margin-top: 40px; margin-bottom: 50px; color: #d6336c;
+        }
+        .poem-section {
+            text-align: center; font-style: italic; color: #666;
+            font-size: 0.95rem; background: #fafafa;
+            padding: 30px; border-radius: 10px; margin-top: 20px; border: 1px solid #eee;
+        }
+        .poem-line { display: block; margin-bottom: 6px; }
+        .poem-break { margin-bottom: 20px; display: block; }
+
+        /* Animaciones */
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+        @keyframes pulse { 0% { opacity: 0.6; } 100% { opacity: 1; } }
+        .floating-heart {
+            position: absolute; color: #ff6b81; pointer-events: none;
+            animation: floatUp 3s linear forwards; z-index: 9999; font-size: 20px;
+        }
+        @keyframes floatUp { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-150px) scale(1.5); opacity: 0; } }
+
+        @media (max-width: 480px) {
+            h1 { font-size: 2.5rem; }
+            .envelope-wrapper { width: 260px; height: 180px; }
+            .paper-content { padding: 30px 15px; width: 95%; margin-bottom: 150px; }
+            .paper-inner { padding: 20px 15px; }
+            .envelope::before { border-width: 90px 0 90px 130px; }
+            .envelope::after { border-width: 0 0 180px 260px; }
+            .flap { border-width: 90px 130px 0 130px; }
+        }
+        
+        /* Ocultar elementos al imprimir */
+        @media print {
+            .action-bar-bottom, #intro-screen, .music-control, #bg-canvas, .music-hint { display: none !important; }
+            body { background: white; height: auto; overflow: visible; }
+            #letter-container { position: static; display: block; overflow: visible; opacity: 1; }
+            .paper-content { margin: 0; width: 100%; box-shadow: none; transform: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- AUDIO: Piano Instrumental Romántico -->
+    <audio id="bg-music" loop preload="auto">
+        <source src="https://cdn.pixabay.com/audio/2022/05/27/audio_1808fbf07a.mp3" type="audio/mp3">
+    </audio>
+
+    <!-- CONTROLES MÚSICA -->
+    <div class="music-control" onclick="toggleMusic()">
+        <i class="fas fa-music" id="music-icon"></i>
+    </div>
+    <div class="music-hint" id="music-hint">Tap para activar sonido</div>
+
+    <!-- PANTALLA INICIO (SOBRE) -->
+    <div id="intro-screen">
+        <div class="title-container">
+            <h1>Para el amor de mi vida</h1>
+            <div class="subtitle">Ingresa a mi carta</div>
+        </div>
+        
+        <div class="envelope-wrapper" onclick="openLetter()">
+            <div class="envelope">
+                <div class="letter-preview"></div>
+                <div class="flap">
+                    <div class="heart-seal"><i class="fas fa-heart"></i></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="click-hint">Toca el sobre para abrir</div>
+    </div>
+
+    <!-- CARTA COMPLETA -->
+    <div id="letter-container">
+        <div class="paper-content" id="main-paper">
+            <div class="stamp">Amor</div>
+            
+            <!-- Contenido que se exportará a PDF -->
+            <div class="paper-inner" id="content-to-pdf">
+                <div class="letter-text">
+                    <span class="greeting">Buenas noches mi vida,</span>
+                    <p>Me acuerdo que me dijiste que no te has sentido valorada, apreciada... amada, esto retumbó en mi mente en mi ser, no sé en qué momento perdí esa admiración en tus ojos o bueno tal vez sí sé.... Quiero decirte discúlpame tantas cosas han pasado tan rápidas y a la vez parece que hemos sufrido como si hubiera sido milenios...</p>
+                    <p>Quiero decirte gracias, gracias por esperarme gracias por darme oportunidad de poder hablarte y decirte que mi mundo sin ti no podría girar... siempre estaría en contra del sol puesto que tú eres mi sol, la que ilumina mi vida, gracias por ser mi universo mi camino... sé que todavía falta mucho para que yo sea esa persona que tú deseas... pero créeme que lograré que me veas como me veías, abiertos esos ojos coloridos que daban en conclusión un castaño tan lindo... ver esa sonrisa que se forma en esos labios tan húmedos y despampanantes, gesticulando que yo, <strong>Richard Elias Carbajal Saldaña</strong> era la persona que más te amaba, quiero volverte a enamorar una vez más como tú logras hacerme sentir, te mereces no solo una estrella sino centenares.</p>
+                    <p>La belleza de Isis, no rivaliza con la tuya eres un ser de luz, que hace que mi corazón vaya a <strong>180lpm</strong> a cada momento, eres el mejor cardio que alguien podría tener, no estoy harto de ti, sino de mí de la manera en la que te he estado haciendo sentir cuando eso no es lo que quiero, yo no he imaginado un mundo donde no estés, sabías que hasta he soñado contigo y nuestra pequeña Eli... Realmente se parece a ti es tan linda...</p>
+                    <p>Debo agradecerte de que en todo este tiempo me has visto, te has quedado a pesar de tantas cosas, yo no quiero ser tu ancla en la tierra... Quiero ser tu plataforma de lanzamiento y poder contar:</p>
+                    <div class="dialogue-box">
+                        <span class="dialogue-line">9... 8.... 7.... "Te amo mi amor"</span>
+                        <span class="dialogue-line">6... 5... 4... "Ya te extraño"</span>
+                        <span class="dialogue-line">3... "que voy a hacer sin ti, ni cocinar sé"</span>
+                        <span class="dialogue-line">2... "Si llegas tarde moriré de inanición"</span>
+                        <span class="dialogue-line">1... "Vuelve pronto amor mío, te estaré esperando con nuestros niños cuenta 3 2 1 y comienza nuestra serie"</span>
+                        <span class="dialogue-line">0....</span><br>
+                        <span class="dialogue-line">—Eli, David allá va mamá... no la veremos en 6 meses pero ella nos va a estar viendo desde tan lejos pero estará cerca nuestro... en nuestros corazones, así que graben todo cada gol cada nota para hacerle una bitácora a mami sí...</span><br>
+                        <small style="color: #999;">(Se agacha y viendo al cielo caen lágrimas por su mejilla puesto que el amor de su vida se separó de él después de tanto pero con alegría porque lo logró y el supo que pasaría)</small>
+                    </div>
+                    <p>Así que mi vida hermosa porfavor no te vayas porque aunque sé que me faltan muchas cosas, requisitos sé que seré el mejor hombre que puedes desear, te amo mi terquito, siempre pensaré en ti y no habrá momento donde no piense en ti, todo esto yo me comprometo a cumplirlo, tal vez con muchas peleas discusiones en medio, pero prometo no irme... porque te elegí y eso es una decisión no algo efímero como una emoción...</p>
+                    <p>Aunque a decir verdad aún no pierdo eso, siento que eres mi dopamina de mi neuroreceptor, no sé por qué después de tanto tiempo sigo impactado por tu belleza por tu asombrosa belleza, sigo enamorado y sonriendo de nervios cuando te veo guapa, tal vez estas paginas quedarán cortas ante todo lo que debo de decirte, porque el amor es tan difícil definirlo sabes o simplificarlo en palabras...</p>
+                    <p>Me encantó encontrar aquella palabra <strong>"Inefable"</strong> porque no alcanzan las palabras para poder decirte lo increíble que eres... aunque sí podría decirte cuanto te amo....</p>
+                    <div class="math-block">Te amo un $\pi \times \Pi$ <br><small>(Pijsjsjsj)</small></div>
+                    <p>Quería tomar un ratito un poquito de tu tiempo para que pudieras poseer un poquito de mi ser y verte a través de mi.</p>
+                    <p>Eres una persona que cuando conocí ya tenía esa luz para mejorar que tenía un potencial inmenso que no era alguien normal... genérico, nononono tú eras esa, esa persona que te impactan al llegar y que si no le hablas te arrepientes el resto de tu vida de no haber sido valiente... menos mal tomé ese chance de hablarte arriesgarme porque conseguí lo que todos desearían... eso fue al conocerte... y desde ese día evolucionaste tu ya no eres esa chica que conocí eres alguien más centrada pero sin perder esas ganas de jugar... nunca dejes de ser caprichosa porque amo eso de ti aunque ahorita a veces no puedo cumplirlos, sabes y ahora últimamente has mejorado tanto, has cambiado tanto que ya no reconozco a mi chica, ahora te cuestionas hasta de si sigues haciendo bien las cosas, es bueno que dudes que cuestiones porque si por algún segundo crees que ya cambiaste ya mejoraste, te estancarás y no querrás seguir... pero también no debes irte al otro extremo de creer que no cambias que eres la misma, nononono tú eres distinta mucho más integra inteligente y sobre todo, sobre todo con mucha más clase eres imponente y ahora amo hablar contigo cuando tienes estos momentos de plenitud, amo tenerte como mi compañera de vida... sinceramente cada vez desde ese momento he imaginado nuestra muerte juntos, tomados de la mano... O deseando la muerte para poder volverte a ver, eres increíble y no pares, sigue adelante, yo estoy atrás tuyo con un vaso de agua porque cada vez que caigas o la vida meta cabe tal vez no veas huellas de nadie de donde seguir pero yo seré tu hombro y Dios será nuestras piernas, mi bella mujer, solo mírate un segundo como yo te veo y amate, ámate mírate un segundo como yo te veo y te enamorarás de ti.</p>
+                    <p>Esta pequeña carta ya tomó un curso donde no puedo parar de escribir... pero si sigo perderé la ilación y quiero que te sientas especial... esta no será la ultima... créeme que vienen muchas más... te amo mi reina mi princesita</p>
+                    <div class="signature">Atte: Tu tereque</div>
+                    <div class="poem-section">
+                        <span class="poem-line">Corazón resonante por las noches...</span>
+                        <span class="poem-line">A la espera del recuerdo...</span><span class="poem-break"></span>
+                        <span class="poem-line">Labios temblorosos en penumbras...</span>
+                        <span class="poem-line">Porque sienten el frío de las palabras...</span><span class="poem-break"></span>
+                        <span class="poem-line">Alma errante al amanecer...</span>
+                        <span class="poem-line">Por miedo a perder...</span><span class="poem-break"></span>
+                        <span class="poem-line">Ojos perdidos llamando al dolor...</span>
+                        <span class="poem-line">Diciendo que ya no hay admiración</span><span class="poem-break"></span>
+                        <span class="poem-line">Vuelve, vuelve ya! Porque sin ti no hay mañana</span>
+                        <span class="poem-line">Absorto en tareas, perdí el norte</span>
+                        <span class="poem-line">Aquella estrella que guía a los marinero, perdida al pestañar</span><span class="poem-break"></span>
+                        <span class="poem-line">Vuelve, vuelve ya! Porque sin ti no hay un mañana</span>
+                        <span class="poem-line">Canticos dejan de tener sentido</span>
+                        <span class="poem-line">Corazón a 60lpm apagándose</span>
+                        <span class="poem-line">Piernas temblorosas</span><span class="poem-break"></span>
+                        <span class="poem-line">Vuelve, vuelve ya! Porque sin ti ya no hay un presente</span>
+                        <span class="poem-line">Oh, que tonto he sido</span>
+                        <span class="poem-line">Pensando en el mañana cuando debí pensar en el hoy</span>
+                        <span class="poem-line">Oh, que tonto, tonto</span><span class="poem-break"></span>
+                        <span class="poem-line">Ya no alzcanzan cabellos para tirar, desgracida vida de calvo</span>
+                        <span class="poem-line">Vuelve, vuelve ya! Porque ya no hay ni mañana ni hoy ni ayer en esta vida</span>
+                        <span class="poem-line">Recuerdos dolorosos persiguen a este tu humilde servidor.</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- BARRA DE ACCIONES (Fuera del div 'paper-inner' para no salir en el PDF) -->
+            <div class="action-bar-bottom">
+                <button class="action-btn" onclick="downloadLetter()" title="Guardar PDF">
+                    <i class="fas fa-download"></i> Descargar Carta
+                </button>
+                <button class="action-btn" onclick="closeLetter()" title="Cerrar">
+                    <i class="fas fa-times"></i> Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- EFECTOS VISUALES ---
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resizeCanvas); resizeCanvas();
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width; this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 3 + 1; this.speedX = (Math.random() - 0.5) * 0.5; this.speedY = (Math.random() - 0.5) * 0.5;
+                this.color = Math.random() > 0.5 ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 192, 203, 0.4)';
+            }
+            update() {
+                this.x += this.speedX; this.y += this.speedY;
+                if(this.x < 0 || this.x > canvas.width) this.speedX *= -1;
+                if(this.y < 0 || this.y > canvas.height) this.speedY *= -1;
+            }
+            draw() { ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill(); }
+        }
+        function initParticles() { particles = []; for (let i = 0; i < 60; i++) particles.push(new Particle()); }
+        function animateParticles() { ctx.clearRect(0, 0, canvas.width, canvas.height); particles.forEach(p => { p.update(); p.draw(); }); requestAnimationFrame(animateParticles); }
+        initParticles(); animateParticles();
+
+        // --- MÚSICA Y CONTROL ---
+        const music = document.getElementById('bg-music');
+        const musicIcon = document.getElementById('music-icon');
+        const musicHint = document.getElementById('music-hint');
+        let isMusicBusy = false;
+        let isOpening = false;
+
+        // Intentar reproducir al hacer CUALQUIER interacción
+        function forcePlayOnFirstClick() { 
+            playAudioSafe(); 
+            // Remover el listener para que no se ejecute siempre
+            document.body.removeEventListener('click', forcePlayOnFirstClick);
+        }
+        document.body.addEventListener('click', forcePlayOnFirstClick);
+
+        function openLetter() {
+            if(isOpening) return;
+            isOpening = true;
+            playAudioSafe();
+
+            const envelope = document.querySelector('.envelope-wrapper');
+            envelope.classList.add('open');
+
+            setTimeout(() => {
+                const intro = document.getElementById('intro-screen');
+                const letterCont = document.getElementById('letter-container');
+                const paper = document.getElementById('main-paper');
+
+                intro.style.opacity = '0';
+                
+                setTimeout(() => {
+                    intro.style.display = 'none';
+                    letterCont.style.display = 'block';
+                    requestAnimationFrame(() => {
+                        letterCont.style.opacity = '1';
+                        paper.classList.add('open');
+                        celebrate();
+                    });
+                }, 800);
+            }, 1200);
+        }
+
+        // --- FUNCIÓN DE CERRAR CARTA ---
+        function closeLetter() {
+            const intro = document.getElementById('intro-screen');
+            const letterCont = document.getElementById('letter-container');
+            const paper = document.getElementById('main-paper');
+            const envelope = document.querySelector('.envelope-wrapper');
+
+            paper.classList.remove('open');
+            letterCont.style.opacity = '0';
+
+            setTimeout(() => {
+                letterCont.style.display = 'none';
+                intro.style.display = 'flex';
+                requestAnimationFrame(() => { intro.style.opacity = '1'; });
+                envelope.classList.remove('open');
+                isOpening = false;
+            }, 500);
+        }
+
+        // --- FUNCIÓN DE DESCARGAR (PDF REAL) ---
+        function downloadLetter() {
+            // Seleccionamos solo el contenido interior (sin botones)
+            const element = document.getElementById('content-to-pdf');
+            
+            const opt = {
+                margin:       [10, 15, 10, 15], // márgenes
+                filename:     'Para_Mi_Amor.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true }, 
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            // Generar PDF
+            html2pdf().set(opt).from(element).save();
+        }
+
+        async function playAudioSafe() {
+            if (isMusicBusy) return;
+            isMusicBusy = true;
+            try {
+                music.volume = 1.0;
+                await music.play();
+                musicIcon.classList.remove('fa-music');
+                musicIcon.classList.add('fa-pause');
+            } catch (error) {
+                // Si falla el autoplay, mostrar hint sutil
+                if (music.paused) {
+                    musicHint.style.display = 'block';
+                    setTimeout(() => musicHint.style.opacity = '1', 100);
+                    setTimeout(() => { musicHint.style.opacity = '0'; setTimeout(()=>musicHint.style.display='none', 500); }, 4000);
+                }
+            } finally {
+                isMusicBusy = false;
+            }
+        }
+
+        async function toggleMusic() {
+            if (isMusicBusy) return;
+            isMusicBusy = true;
+            try {
+                if (music.paused) {
+                    await music.play();
+                    musicIcon.classList.remove('fa-music');
+                    musicIcon.classList.add('fa-pause');
+                } else {
+                    music.pause();
+                    musicIcon.classList.remove('fa-pause');
+                    musicIcon.classList.add('fa-music');
+                }
+            } catch (err) {
+                // Ignore error
+            } finally {
+                isMusicBusy = false;
+            }
+        }
+
+        function createHeart(x, y) {
+            const heart = document.createElement('i');
+            heart.className = 'fas fa-heart floating-heart';
+            heart.style.left = x + 'px'; heart.style.top = y + 'px';
+            heart.style.color = ['#ff6b81', '#ff4757', '#e84393', '#d6336c'][Math.floor(Math.random() * 4)];
+            heart.style.fontSize = (Math.random() * 20 + 15) + 'px';
+            document.body.appendChild(heart);
+            setTimeout(() => heart.remove(), 3000);
+        }
+        document.addEventListener('click', (e) => {
+            if(!e.target.closest('.envelope-wrapper') && 
+               !e.target.closest('.music-control') && 
+               !e.target.closest('.action-btn')) {
+                createHeart(e.clientX, e.clientY);
+            }
+        });
+        function celebrate() {
+            const w = window.innerWidth, h = window.innerHeight;
+            for(let i=0; i<20; i++) setTimeout(() => createHeart(w/2 + (Math.random()*200 - 100), h/2 + (Math.random()*200 - 100)), i * 100);
+        }
+    </script>
+</body>
+</html>
